@@ -47,6 +47,11 @@ Nonterminals
   list_ref
   list_elem
   list_elems
+  map_ref
+  map_elem
+  map_key
+  map_value
+  map_elems
   range_ref
   range_literal.
 
@@ -77,11 +82,14 @@ Terminals
   ')'
   '['
   ']'
+  '{'
+  '}'
   '*'
   '+'
   ','
   '-'
   '.'
+  ':'
   '/'
   'div'.
 
@@ -221,6 +229,7 @@ scalar_exp_commalist -> scalar_exp_commalist ',' scalar_opt_as_exp : '$1' ++ ['$
 computed_var -> name_or_path_ref :   '$1'.
 computed_var -> range_ref       :   '$1'.
 computed_var -> list_ref        :   '$1'.
+computed_var -> map_ref         :   '$1'.
 
 name_or_path_ref -> NAME             : unwrap_var('$1').
 name_or_path_ref -> path_ref         : '$1'.
@@ -251,6 +260,19 @@ list_elem -> literal                    : '$1'.
 
 list_ref -> '[' list_elems ']'           : {list, trans_list_ref('$2')}.
 
+map_elems -> map_elem                  : {cons, '$1', 'nil'}.
+map_elems -> map_elem ',' map_elems    : {cons, '$1', '$3'}.
+map_elems -> '$empty'                  : nil.
+
+map_elem -> map_key ':' map_value      : {'$1', '$3'}.
+
+map_key -> STRING                      : unwrap_const('$1').
+
+map_value -> computed_var              : '$1'.
+map_value -> literal                   : '$1'.
+
+map_ref -> '{' map_elems '}'           : {map, trans_list_ref('$2')}.
+
 range_ref ->  name_or_path_ref  RANGE   : {'get_range', unwrap_range('$2'), '$1'}.
 range_literal -> RANGE                  : {'range', unwrap_range('$1')}.
 
@@ -277,7 +299,6 @@ literal -> STRING    : unwrap_const('$1').
 literal -> INTNUM    : unwrap_const('$1').
 literal -> APPROXNUM : unwrap_const('$1').
 literal -> range_literal  :   '$1'.
-
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Erlang code.
@@ -343,10 +364,8 @@ make_list(L) -> [L].
 
 unquote("'" ++ _ = Str) ->
     string:trim(Str, both, "'");
-
 unquote("\"" ++ _ = Str) ->
     string:trim(Str, both, "\"");
-
 unquote(Str) when is_list(Str) ->
     Str.
 

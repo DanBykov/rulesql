@@ -968,3 +968,93 @@ list_literal_test_() ->
                     {where,{}}]}},
             rulesql:parsetree(<<"SELECT abc([1]) FROM abc">>))
     ].
+
+map_literal_test_() ->
+    [
+        %% empty map construct
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [{map, []}]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT {} FROM abc">>)
+        ),
+        %% simple map construct with single element
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [{map, [{{const, <<"key">>}, {const, <<"value">>}}]}]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT {'key': 'value'} FROM abc">>)
+        ),
+        %% simple map construct with multiple elements
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {map, [
+                            {{const, <<"foo">>}, {map, [{{const, <<"bar">>}, {const, <<"baz">>}}]}}
+                        ]}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT {'foo': {'bar': 'baz'}} FROM abc">>)
+        ),
+        %% simple map construct with multiple elements with as
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {as, {map, [{{const, <<"key">>}, {const, <<"value">>}}]}, {var, <<"map">>}}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT {'key': 'value'} as map FROM abc">>)
+        ),
+        %% map construct with different types of elements
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {map, [
+                            {
+                                {const, <<"map">>},
+                                {map, [
+                                    {{const, <<"string">>}, {const, <<"baz">>}},
+                                    {{const, <<"int">>}, {const, 1}},
+                                    {
+                                        {const, <<"list">>},
+                                        {list, [
+                                            {map, [{{const, <<"key">>}, {const, <<"value">>}}]}
+                                        ]}
+                                    }
+                                ]}
+                            }
+                        ]}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(
+                <<"SELECT {'map': {'string': 'baz', 'int': 1, 'list': [{'key': 'value'}]}} FROM abc">>
+            )
+        ),
+        %% use map in func
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {'fun', {var, <<"abc">>}, [{map, []}]}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT abc({}) FROM abc">>)
+        )
+    ].
