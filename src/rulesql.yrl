@@ -42,6 +42,8 @@ Nonterminals
   function_ref
   fun_args
   fun_arg
+  fun_res_by_path
+  fun_res_path
   literal
   index_ref
   list_ref
@@ -218,6 +220,7 @@ scalar_exp -> unary_add_or_subtract scalar_exp : {'$1','$2'}.
 scalar_exp -> literal                       : '$1'.
 scalar_exp -> computed_var                  : '$1'.
 scalar_exp -> function_ref                  : '$1'.
+scalar_exp -> fun_res_by_path               : '$1'.
 scalar_exp -> '(' scalar_exp ')'            : '$2'.
 
 unary_add_or_subtract -> '+' : '+'.
@@ -295,6 +298,14 @@ fun_arg -> fun_arg COMPARISON fun_arg    : {unwrap('$2'), '$1', '$3'}.
 fun_arg -> function_ref                  : '$1'.
 fun_arg -> unary_add_or_subtract fun_arg : {'$1', '$2'}.
 
+% used for functions that return a map, you can use points(key1.key2.etc) to define the keys you want to search for
+% e.g. lambda('some_fun', {'data': payload.fun.arg}).result.valid
+% if 'some_fun' function returns #{"result" => #{"valid" => false}}, then the result will be false 
+fun_res_by_path -> function_ref '.' fun_res_path : {'fun_res_by_path', '$1', '$3'}.
+
+fun_res_path -> fun_res_path '.' fun_res_path   : merge_fun_res_path('$1', '$3').
+fun_res_path -> NAME                            : unwrap_fun_res_path('$1').
+
 literal -> STRING    : unwrap_const('$1').
 literal -> INTNUM    : unwrap_const('$1').
 literal -> APPROXNUM : unwrap_const('$1').
@@ -346,6 +357,9 @@ unwrap_const({'INTNUM', _, X}) when is_list(X) ->
 unwrap_const({'APPROXNUM', _, X}) when is_list(X) ->
     const(list_to_float(X)).
 
+unwrap_fun_res_path({'NAME', _, X}) when is_list(X) ->
+    {fun_res_path, [list_to_binary(unquote(X))]}.
+
 unwrap_index('+', {'INTNUM', _, X}) when X =:= "0" ->
     const(head);
 unwrap_index('-', {'INTNUM', _, X}) when X =:= "0" ->
@@ -393,6 +407,8 @@ trans_list_ref(nil) ->
 trans_list_ref({cons, Head, Tail}) ->
     [Head] ++ trans_list_ref(Tail).
 
+merge_fun_res_path({fun_res_path, PathL}, {fun_res_path, PathR}) ->
+    {fun_res_path, PathL ++ PathR}.
 %%-----------------------------------------------------------------------------
 %%                                  PARSER
 %%-----------------------------------------------------------------------------

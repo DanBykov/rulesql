@@ -1058,3 +1058,53 @@ map_literal_test_() ->
             rulesql:parsetree(<<"SELECT abc({}) FROM abc">>)
         )
     ].
+
+fun_res_by_path_test_() ->
+    [
+        %% get fun result by one key
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {fun_res_by_path,
+                            {'fun', {var, <<"lambda">>}, [
+                                {const, <<"name">>},
+                                {map, [
+                                    {
+                                        {const, <<"data">>},
+                                        {path, [{key, <<"payload">>}, {key, <<"data">>}]}
+                                    }
+                                ]}
+                            ]},
+                            {fun_res_path, [<<"result">>]}}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(<<"SELECT lambda('name', {'data': payload.data}).result FROM abc">>)
+        ),
+        %% get fun result by multiple keys
+        ?_assertMatch(
+            {ok,
+                {select, [
+                    {fields, [
+                        {fun_res_by_path,
+                            {'fun', {var, <<"lambda">>}, [
+                                {const, <<"name">>},
+                                {map, [
+                                    {
+                                        {const, <<"data">>},
+                                        {path, [{key, <<"payload">>}, {key, <<"data">>}]}
+                                    }
+                                ]}
+                            ]},
+                            {fun_res_path, [<<"foo">>, <<"bar">>, <<"baz">>]}}
+                    ]},
+                    {from, [<<"abc">>]},
+                    {where, {}}
+                ]}},
+            rulesql:parsetree(
+                <<"SELECT lambda('name', {'data': payload.data}).foo.bar.baz FROM abc">>
+            )
+        )
+    ].
